@@ -91,7 +91,7 @@ WHERE TransDate BETWEEN @StartDate AND @EndDate ";
         [HttpGet("GetItemByBarcode")]
         public async Task<IActionResult> GetItemByBarcode(
             [FromHeader(Name = "x-api-key")] string apiKey,
-            string barcode)
+            string? barcode)
         {
             if (string.IsNullOrWhiteSpace(apiKey) || apiKey != ApiKey)
             {
@@ -104,52 +104,76 @@ WHERE TransDate BETWEEN @StartDate AND @EndDate ";
 
             try
             {
-                if (string.IsNullOrWhiteSpace(barcode))
-                {
-                    return BadRequest(new
-                    {
-                        success = false,
-                        message = "Barcode is required."
-                    });
-                }
-
                 using SqlConnection con = new SqlConnection(RmsConnection);
                 await con.OpenAsync();
 
-                string query = @"
-SELECT TOP 1
-    ItemLookupCode AS BarCode,
-    Description AS ItemName,
-    Price,
-    UnitOfMeasure
-FROM RichCut_DATA_CENTER.dbo.Item
-WHERE StoreID = 1
-  AND ItemLookupCode = @Barcode";
+                string query;
+
+                if (string.IsNullOrWhiteSpace(barcode))
+                {
+                    // Fetch all items
+                    query = @"
+                SELECT
+                    ItemLookupCode AS BarCode,
+                    Description AS ItemName,
+                    Price,
+                    UnitOfMeasure
+                FROM RichCut_DATA_CENTER.dbo.Item
+                WHERE StoreID = 1
+                ORDER BY ItemLookupCode";
+                }
+                else
+                {
+                    // Fetch specific item
+                    query = @"
+                SELECT TOP 1
+                    ItemLookupCode AS BarCode,
+                    Description AS ItemName,
+                    Price,
+                    UnitOfMeasure
+                FROM RichCut_DATA_CENTER.dbo.Item
+                WHERE StoreID = 1
+                  AND ItemLookupCode = @Barcode";
+                }
 
                 using SqlCommand cmd = new SqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@Barcode", barcode);
+
+                if (!string.IsNullOrWhiteSpace(barcode))
+                {
+                    cmd.Parameters.AddWithValue("@Barcode", barcode);
+                }
 
                 using SqlDataReader dr = await cmd.ExecuteReaderAsync();
 
-                if (await dr.ReadAsync())
+                var items = new List<object>();
+
+                while (await dr.ReadAsync())
                 {
-                    return Ok(new
+                    items.Add(new
                     {
-                        success = true,
-                        data = new
-                        {
-                            BarCode = dr["BarCode"]?.ToString(),
-                            ItemName = dr["ItemName"]?.ToString(),
-                            Price = dr["Price"] == DBNull.Value ? 0 : Convert.ToDecimal(dr["Price"]),
-                            UnitOfMeasure = dr["UnitOfMeasure"]?.ToString()
-                        }
+                        BarCode = dr["BarCode"]?.ToString(),
+                        ItemName = dr["ItemName"]?.ToString(),
+                        Price = dr["Price"] == DBNull.Value
+                            ? 0
+                            : Convert.ToDecimal(dr["Price"]),
+                        UnitOfMeasure = dr["UnitOfMeasure"]?.ToString()
                     });
                 }
 
-                return NotFound(new
+                if (items.Count == 0)
                 {
-                    success = false,
-                    message = "Item not found."
+                    return NotFound(new
+                    {
+                        success = false,
+                        message = "Item not found."
+                    });
+                }
+
+                return Ok(new
+                {
+                    success = true,
+                    count = items.Count,
+                    data = items
                 });
             }
             catch (Exception ex)
