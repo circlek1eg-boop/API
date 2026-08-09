@@ -113,14 +113,19 @@ WHERE TransDate BETWEEN @StartDate AND @EndDate ";
                 {
                     // Fetch all items
                     query = @"
-                SELECT
+                               SELECT distinct  
                     ItemLookupCode AS BarCode,
                     Description AS ItemName,
-                    Price,
-                    UnitOfMeasure
+                    Item.Price,
+                    CASE
+    WHEN ItemLookupCode LIKE '20%' 
+         AND ItemLookupCode LIKE '%000000'
+    THEN 'gram'
+    ELSE 'Piece'
+END AS UnitOfMeasure
                 FROM RichCut_DATA_CENTER.dbo.Item
-                WHERE StoreID = 1
-                ORDER BY ItemLookupCode";
+                inner join RichCut_DATA_CENTER.dbo.TransactionEntry Sales on Sales.ItemId=Item.Id
+                WHERE Item.StoreID = 1 and inactive=0 and cast(Sales.TransactionTime as date) >=cast(Getdate()-180 as date) ";
                 }
                 else
                 {
