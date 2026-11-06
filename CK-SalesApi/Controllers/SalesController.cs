@@ -1,7 +1,11 @@
 ﻿using CK_SalesApi.ViewModel;
+using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.VisualBasic;
 using System.Data.SqlClient;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace CK_SalesApi.Controllers
 {
@@ -10,13 +14,135 @@ namespace CK_SalesApi.Controllers
     public class SalesController : ControllerBase
     {
         private readonly string connStr =
-            "Server=45.240.157.20;User ID=sa;Password=P@ssw0rd123;Database=TopSoft;Connect Timeout=10200;Encrypt=False;TrustServerCertificate=True;";
-        public string RmsConnection = string.Format("Server=45.240.157.21;User ID=sa;Password=S@leh2024;Database=DATA_CENTER;Connect Timeout=10200;Encrypt=False;TrustServerCertificate=True;ApplicationIntent=ReadWrite;MultiSubnetFailover=False;");
+            "Server=192.168.1.156;User ID=sa;Password=S@leh2024;Database=TopSoft;Connect Timeout=10200;Encrypt=False;TrustServerCertificate=True;";
+        public string RmsConnection = string.Format("Server=192.168.1.156;User ID=sa;Password=S@leh2024;Database=DATA_CENTER;Connect Timeout=10200;Encrypt=False;TrustServerCertificate=True;ApplicationIntent=ReadWrite;MultiSubnetFailover=False;");
+        private const string ApiKey = "shfalsaierwyrqpafknknvsj3434lakdf34535";
+        private const string ApiKeySodic = "sT35hfK345saierwyrqpafknknvsj3434lakdf34535";
 
+        [HttpGet("GetSalesPerTrans")]
+        public async Task<IActionResult> GetSalesPerTrans(
+       [FromHeader(Name = "x-api-key")] string apiKey, string startDate,
+            string endDate,
+            string? branchName = null)
+        {
+            if (string.IsNullOrWhiteSpace(ApiKeySodic) || apiKey != ApiKeySodic)
+            {
+                return Unauthorized(new
+                {
+                    success = false,
+                    message = "Invalid API Key."
+                });
+            }
+            try
+            {
+                SalesSodicVM vm = new SalesSodicVM();
+                List<SalesSodicVM> list = new List<SalesSodicVM>();
 
+                using (SqlConnection con = new SqlConnection(connStr))
+                {
+                    await con.OpenAsync();
+
+                    string q = @"
+SELECT Sum(SVC)SVC,
+    StoreId,
+    StoreName,
+TransDate,
+DateandTime,
+    TransactionNumber,
+ sum(TotalSalesWithoutTaxSVC)TotalSalesWithoutTaxSVC,
+    sum(TotalSales)TotalSales,
+    Sum(Tax)Tax,
+    Sum(TotalSalesWithoutTax)TotalSalesWithoutTax--,
+  --  Vat
+FROM
+(
+    " + vm.RptSalesAll() + @"
+) Sales
+WHERE dpName !='Cigarettes' and  StoreName in ('SODIC','SODIC_WMC') and TransDate BETWEEN @StartDate AND @EndDate ";
+
+                    if (!string.IsNullOrEmpty(branchName))
+                    {
+                        q += @" AND StoreName = @BranchName ";
+                    }
+                    q += @" group by  StoreId,
+    StoreName,
+TransDate,
+DateandTime,
+    TransactionNumber ";
+                    // Optional: Order by date/transaction if needed
+                    // q += @" ORDER BY TransDate DESC";
+
+                    using (SqlCommand cmd = new SqlCommand(q, con))
+                    {
+                        cmd.Parameters.AddWithValue("@StartDate", startDate);
+                        cmd.Parameters.AddWithValue("@EndDate", endDate);
+                        if (!string.IsNullOrEmpty(branchName))
+                        {
+                            cmd.Parameters.AddWithValue("@BranchName", branchName);
+                        }
+
+                        using (SqlDataReader dr = await cmd.ExecuteReaderAsync())
+                        {
+                            while (await dr.ReadAsync())
+                            {
+                                list.Add(new SalesSodicVM
+                                {
+                                    TransDate = dr["TransDate"] == DBNull.Value
+    ? string.Empty
+    : Convert.ToDateTime(dr["TransDate"]).ToString("yyyy-MM-dd"),
+                                     StoreId = dr["StoreId"] == DBNull.Value
+                                        ? string.Empty
+                                        : dr["StoreId"].ToString(),
+
+                                    BranchName = dr["StoreName"] == DBNull.Value
+                                        ? string.Empty
+                                        : dr["StoreName"].ToString(),
+
+                                    TransactionNumber = dr["TransactionNumber"] == DBNull.Value
+                                        ? string.Empty
+                                        : dr["TransactionNumber"].ToString(),
+                                    DateandTime = dr["DateandTime"] == DBNull.Value
+                                        ? string.Empty
+                                        : dr["DateandTime"].ToString(),
+
+                                    TotalSalesWithTaxSVC = dr["TotalSales"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(dr["TotalSales"]),
+
+                                    Tax = dr["Tax"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(dr["Tax"]),
+                                    SVC = dr["SVC"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(dr["SVC"]),
+
+                                    TotalSalesWithoutTaxSVC = dr["TotalSalesWithoutTaxSVC"] == DBNull.Value
+                                        ? 0
+                                        : Convert.ToDecimal(dr["TotalSalesWithoutTaxSVC"]),
+
+                                    //Vat = dr["Vat"] == DBNull.Value
+                                    //    ? 0
+                                    //    : Convert.ToDecimal(dr["Vat"])
+                                });
+                            }
+                        }
+                    }
+                }
+
+                return Ok(list);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = ex.Message
+                });
+            }
+        }
         [HttpGet("GetSalesData")]
         public async Task<IActionResult> GetSalesData(
-            string startDate,
+      [FromHeader(Name = "x-api-key")] string apiKey, string startDate,
             string endDate,
             string? branchName = null)
         {
@@ -86,7 +212,6 @@ WHERE TransDate BETWEEN @StartDate AND @EndDate ";
             }
         }
 
-        private const string ApiKey = "shfalsaierwyrqpafknknvsj3434lakdf34535";
 
         [HttpGet("GetItemByBarcode")]
         public async Task<IActionResult> GetItemByBarcode(
