@@ -14,7 +14,6 @@ namespace CK_SalesApi.ViewModel
         public string TransactionNumber { get; set; }
         
         public decimal TotalSalesWithTaxSVC { get; set; }
-        public decimal TotalSales { get; set; }
         public decimal TotalSalesWithoutTaxSVC { get; set; }
         public decimal Tax { get; set; }
         public decimal SVC { get; set; }
