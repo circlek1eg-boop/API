@@ -38,14 +38,14 @@ namespace CK_SalesApi.Controllers
                 {
                     await con.OpenAsync();
 
-                    string q =  vm.RptEmployeeLogsView;
+                    string q = $"Select * from ( { vm.RptEmployeeLogsView} ) AS EmployeeLogs";
 
                     if (!string.IsNullOrEmpty(employeeCode))
                     {
                         q += " AND EmployeeCode = @EmployeeCode ";
                     }
 
-                    q += " ORDER BY LoginDate ";
+                    q += " ORDER BY CheckTimeText ";
 
                     using (SqlCommand cmd = new SqlCommand(q, con))
                     {
@@ -63,9 +63,7 @@ namespace CK_SalesApi.Controllers
                             {
                                 list.Add(new EmployeeLogsVM
                                 {
-                                    UserId = dr["UserId"] == DBNull.Value
-                                        ? string.Empty
-                                        : dr["UserId"].ToString(),
+                                    
 
                                     EmployeeCode = dr["EmployeeCode"] == DBNull.Value
                                         ? string.Empty

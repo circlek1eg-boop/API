@@ -2,7 +2,6 @@
 {
     public class EmployeeLogsVM :ViewsVM
     {
-        public string? UserId { get; set; }
         public string? EmployeeCode { get; set; }
         public string? CheckTimeText { get; set; }
         public string? MyDate { get; set; }

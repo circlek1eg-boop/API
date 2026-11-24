@@ -3,19 +3,10 @@
     public class ViewsVM
     {
        public string RptEmployeeLogsView = @"
-                                   SELECT
-                    UserId,
-                    EmployeeCode,
-                    CheckTimeText,
-                    CAST(LoginDate AS DATE) AS MyDate,
-                    CAST(LoginDate AS TIME) AS MyTime,
-                    CASE
-                        WHEN Eventtype = 'Check-In' THEN 0
-                        WHEN Eventtype = 'Check-Out' THEN 1
-                        ELSE NULL
-                    END AS InOut,
-                    1 AS MachineNumber
-                FROM RptEmployeeLogs
+                                  select 
+UserId EmployeeCode,LoginDate CheckTimeText,cast(LoginDate as Date)MyDate,cast(LoginDate as time) MyTime,
+Case when Eventtype ='Check-In' then 0 else 1 end As InOut,1 MachineNumber
+from AttendanceDataCode
                 WHERE CAST(LoginDate AS DATE) BETWEEN @StartDate AND @EndDate ";
         public string linkRmsRptSalesView()
         {
