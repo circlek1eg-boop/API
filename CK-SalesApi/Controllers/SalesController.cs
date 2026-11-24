@@ -23,7 +23,7 @@ namespace CK_SalesApi.Controllers
         public async Task<IActionResult> GetSalesPerTrans(
        [FromHeader(Name = "x-api-key")] string apiKey, string startDate,
             string endDate,
-            string? branchName = null)
+            string? branchName = null,string ? storeId = null)
         {
             if (string.IsNullOrWhiteSpace(ApiKeySodic) || apiKey != ApiKeySodic)
             {
@@ -58,11 +58,16 @@ FROM
 (
     " + vm.RptSalesAll() + @"
 ) Sales
-WHERE dpName !='Cigarettes' and  StoreName in ('SODIC','SODIC_WMC') and TransDate BETWEEN @StartDate AND @EndDate ";
+WHERE dpName !='Cigarettes' 
+and  StoreName in ('SODIC','SODIC_WMC','POLYGN') and TransDate BETWEEN @StartDate AND @EndDate ";
 
                     if (!string.IsNullOrEmpty(branchName))
                     {
                         q += @" AND StoreName = @BranchName ";
+                    }
+                    if (!string.IsNullOrEmpty(storeId))
+                    {
+                        q += @" AND StoreId = @StoreId ";
                     }
                     q += @" group by  StoreId,
     StoreName,
@@ -79,6 +84,10 @@ DateandTime,
                         if (!string.IsNullOrEmpty(branchName))
                         {
                             cmd.Parameters.AddWithValue("@BranchName", branchName);
+                        }
+                        if (!string.IsNullOrEmpty(storeId))
+                        {
+                            cmd.Parameters.AddWithValue("@StoreId", storeId);
                         }
 
                         using (SqlDataReader dr = await cmd.ExecuteReaderAsync())
