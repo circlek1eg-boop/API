@@ -70,12 +70,12 @@ namespace CK_SalesApi.Controllers
                                         : dr["EmployeeCode"].ToString(),
 
                                     CheckTimeText = dr["CheckTimeText"] == DBNull.Value
-                                        ? string.Empty
-                                        : dr["CheckTimeText"].ToString(),
+    ? string.Empty
+    : Convert.ToDateTime(dr["CheckTimeText"]).ToString("yyyy-MM-dd HH:mm:ss"),
 
                                     MyDate = dr["MyDate"] == DBNull.Value
-                                        ? string.Empty
-                                        : Convert.ToDateTime(dr["MyDate"]).ToString("yyyy-MM-dd"),
+    ? string.Empty
+    : Convert.ToDateTime(dr["MyDate"]).ToString("yyyy-MM-dd"),
 
                                     MyTime = dr["MyTime"] == DBNull.Value
                                         ? string.Empty
